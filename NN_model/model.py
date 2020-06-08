@@ -3,15 +3,16 @@ from NN_model.activations import *
 
 
 class MultiLayerPerceptronClassifier:
-    def __init__(self, layer_dims, activations, learning_rate, num_iter):
+    def __init__(self, layer_dims, activations, learning_rate=0.1, num_iter=1000):
         self.layers = []
         self.dims = layer_dims
         self.activations = activations
-        self.L = layer_dims.shape[0]
+        self.L = len(layer_dims)
         self.inputs = None
         self.loss = None
         self.learning_rate = learning_rate
         self.num_iter = num_iter
+        self.loss_curve = []
 
     def fit(self, X, y):
         self.inputs = X
@@ -24,7 +25,7 @@ class MultiLayerPerceptronClassifier:
             if lay == 0:
                 n_prev = self.inputs.shape[0]
             else:
-                n_prev = self.layers[lay - 1].shape[0]
+                n_prev = self.layers[lay - 1].size
 
             n = self.dims[lay]
             act = self.activations[lay]
@@ -36,8 +37,8 @@ class MultiLayerPerceptronClassifier:
 
     def init_weights(self):
         for lay in self.layers:
-            lay.W = np.random.randn(*lay.W.shape) * (1 / np.sqrt(lay.W.shape[0]))
-            lay.B = np.zeros(*lay.B.shape)
+            lay.W = np.random.randn(*lay.W.shape) * 2 / np.sqrt(lay.size)
+            lay.B = np.zeros(lay.B.shape)
 
     def gradient_descend(self, learning_rate, num_iter, y):
         for step in range(num_iter):
@@ -47,6 +48,8 @@ class MultiLayerPerceptronClassifier:
                 layer.W = layer.W - learning_rate * layer.dW
                 layer.B = layer.B - learning_rate * layer.dB
 
+            self.loss_curve.append(self.loss)
+
     def propagate(self, y):
         self.full_forward_propagation(y)
         self.full_backward_propagation(y)
@@ -54,7 +57,7 @@ class MultiLayerPerceptronClassifier:
     def forward_propagation(self, inputs):
         for lay in range(self.L + 1):
             if lay == 0:
-                A_prev = self.inputs
+                A_prev = inputs
             else:
                 A_prev = self.layers[lay - 1].A
 
@@ -64,7 +67,7 @@ class MultiLayerPerceptronClassifier:
 
     def compute_loss(self, y):
         y_hat = self.layers[-1].A
-        self.loss = (1 / y.shape[0]) * np.sum((1 - y) * np.log(1 - y_hat) + y * np.log(y_hat))
+        self.loss = - (1 / y.shape[1]) * np.sum((1 - y) * np.log(1 - y_hat) + y * np.log(y_hat))
 
     def full_forward_propagation(self, y):
         self.forward_propagation(inputs=self.inputs)
@@ -72,7 +75,7 @@ class MultiLayerPerceptronClassifier:
 
     def compute_dAL(self, y):
         al = self.layers[-1].A
-        return (1 / y.shape[0]) * (y - al) / (al - al**2)
+        return (1 / y.shape[1]) * (al - y) / (al - al**2)
 
     def backward_propagation(self, d_AL, m):
         da = d_AL

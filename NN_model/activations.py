@@ -18,7 +18,7 @@ def tanh_derivative(matrix):
 
 
 def relu(matrix):
-    return max(matrix, 0)
+    return np.maximum(matrix, 0)
 
 
 def relu_derivative(matrix):
