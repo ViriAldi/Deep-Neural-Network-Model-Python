@@ -67,6 +67,7 @@ class MultiLayerPerceptronClassifier:
 
     def compute_loss(self, y):
         y_hat = self.layers[-1].A
+        print(y_hat)
         self.loss = - (1 / y.shape[1]) * np.sum((1 - y) * np.log(1 - y_hat) + y * np.log(y_hat))
 
     def full_forward_propagation(self, y):
