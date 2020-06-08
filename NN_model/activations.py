@@ -23,3 +23,10 @@ def relu(matrix):
 
 def relu_derivative(matrix):
     return (matrix > 0).astype(int)
+
+
+DERIVATIVE = {
+    sigmoid: sigmoid_derivative,
+    tanh: tanh_derivative,
+    relu: relu_derivative
+}

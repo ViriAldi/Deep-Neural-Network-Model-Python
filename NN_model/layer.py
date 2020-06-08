@@ -25,5 +25,5 @@ class Layer:
         self.dA = dA
         self.dZ = self.dA * self.derivative(self.Z)
         self.dB = (1 / m) * np.sum(self.dZ, axis=1, keepdims=True)
-        self.dW = (1 / m) * self.dZ * A_prev.T
-        return self.W.T * self.dZ
+        self.dW = (1 / m) * self.dZ @ A_prev.T
+        return self.W.T @ self.dZ
