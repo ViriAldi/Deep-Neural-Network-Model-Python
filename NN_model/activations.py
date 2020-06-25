@@ -14,7 +14,7 @@ def tanh(matrix):
 
 
 def tanh_derivative(matrix):
-    return 4 * np.exp(2 * matrix) / (1 + np.exp(2 * matrix))**2
+    return 4 / (1/(np.exp(2 * matrix)) + np.exp(2 * matrix))
 
 
 def relu(matrix):

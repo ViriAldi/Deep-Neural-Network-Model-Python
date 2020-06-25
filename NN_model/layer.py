@@ -21,10 +21,10 @@ class Layer:
         self.Z = self.W @ A_prev + self.B
         self.A = self.activation(self.Z)
 
-    def backward_propagate(self, dA, A_prev, m):
+    def backward_propagate(self, dA, A_prev, m, alpha):
         self.dA = dA
         self.dZ = self.dA * self.derivative(self.Z)
         self.dB = (1 / m) * np.sum(self.dZ, axis=1, keepdims=True)
-        self.dW = (1 / m) * self.dZ @ A_prev.T
+        self.dW = (1 / m) * self.dZ @ A_prev.T + (1 / m) * alpha * self.W
 
         return self.W.T @ self.dZ
