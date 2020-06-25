@@ -1,25 +1,39 @@
 from NN_model.layer import Layer
 from NN_model.activations import *
+from math import ceil
 
 
 class MultiLayerPerceptronClassifier:
-    def __init__(self, layer_dims, activations, learning_rate=0.1, num_iter=1000, alpha=0):
+    def __init__(self, layer_dims, activations, learning_rate=0.1, num_epochs=1000, alpha=0, batch_size=64,
+                 optimizer="adam", beta1=0.9, beta2=0.999, epsilon=10**-8):
         self.layers = []
         self.dims = layer_dims
         self.activations = activations
         self.L = len(layer_dims)
+
         self.inputs = None
+        self.y = None
         self.loss = None
-        self.learning_rate = learning_rate
-        self.num_iter = num_iter
+
+        self.num_epochs = num_epochs
         self.alpha = alpha
         self.loss_curve = []
 
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.optimizer = optimizer
+        self.mini_batches = []
+
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.epsilon = epsilon
+
     def fit(self, X, y):
         self.inputs = X
+        self.y = y
         self.init_layers()
         self.init_weights()
-        self.gradient_descend(self.learning_rate, self.num_iter, y)
+        self.gradient_descend(self.learning_rate, self.num_epochs)
 
     def init_layers(self):
         for lay in range(self.L):
@@ -41,26 +55,58 @@ class MultiLayerPerceptronClassifier:
             lay.W = np.random.randn(*lay.W.shape) * 2 / np.sqrt(lay.size)
             lay.B = np.zeros(lay.B.shape)
 
-    def gradient_descend(self, learning_rate, num_epochs, y):
-        for step in range(num_epochs):
-            self.propagate(y)
-            for lay in range(self.L + 1):
-                layer = self.layers[lay]
-                layer.W = layer.W - learning_rate * layer.dW
-                layer.B = layer.B - learning_rate * layer.dB
+    def _init_adam(self):
+        for layer in self.layers:
+            layer.Vel_W = np.zeros(layer.W.shape)
+            layer.Sqr_W = np.zeros(layer.W.shape)
+            layer.Vel_b = np.zeros(layer.B.shape)
+            layer.Sqr_b = np.zeros(layer.B.shape)
 
-            self.loss_curve.append(self.loss)
-            if step % 50 == 0:
-                print(f"Loss after {step}s iteration: ", self.loss)
+    def _shuffle_inputs(self):
+        shuffled = list(np.random.permutation(self.inputs.shape[1]))
+        self.inputs = self.inputs[:, shuffled]
+        self.y = self.y[:, shuffled]
 
-    def propagate(self, y):
-        self.full_forward_propagation(y)
-        self.full_backward_propagation(y)
+        for k in range(ceil(self.inputs.shape[1] / self.batch_size)):
+            mini_batch_x = self.inputs[:, k * self.batch_size:(k+1) * self.batch_size]
+            mini_batch_y = self.y[:, k * self.batch_size:(k + 1) * self.batch_size]
+            self.mini_batches.append((mini_batch_x, mini_batch_y))
 
-    def forward_propagation(self, inputs):
+    def gradient_descend(self, learning_rate, num_epochs):
+        if self.optimizer == "adam":
+            self._init_adam()
+            adam_t = 1
+        for epoch in range(num_epochs):
+            self._shuffle_inputs()
+            for mini_batch in self.mini_batches:
+                self.propagate(*mini_batch)
+                for layer in self.layers:
+                    if self.optimizer == "adam":
+                        layer.Vel_W = self.beta1 * layer.Vel_W + (1 - self.beta1) * layer.dW
+                        layer.Vel_b = self.beta1 * layer.Vel_b + (1 - self.beta1) * layer.dB
+                        layer.Sqr_W = self.beta2 * layer.Sqr_W + (1 - self.beta2) * layer.dW**2
+                        layer.Sqr_b = self.beta2 * layer.Sqr_b + (1 - self.beta2) * layer.dB**2
+
+                        layer.W -= learning_rate * ((layer.Vel_W / (1 - self.beta1**adam_t))
+                                                    / (self.epsilon + np.sqrt(layer.Sqr_W / (1 - self.beta2**adam_t))))
+                        layer.B -= learning_rate * ((layer.Vel_b / (1 - self.beta1**adam_t))
+                                                    / (self.epsilon + np.sqrt(layer.Sqr_b / (1 - self.beta2**adam_t))))
+                    else:
+                        layer.W -= learning_rate * layer.dW
+                        layer.B -= learning_rate * layer.dB
+
+                self.loss_curve.append(self.loss)
+            if epoch % 1 == 0:
+                print(f"Loss after {epoch}s epoch: ", self.loss)
+
+    def propagate(self, x, y):
+        self.full_forward_propagation(x, y)
+        self.full_backward_propagation(x, y)
+
+    def forward_propagation(self, x):
         for lay in range(self.L + 1):
             if lay == 0:
-                A_prev = inputs
+                A_prev = x
             else:
                 A_prev = self.layers[lay - 1].A
 
@@ -79,29 +125,29 @@ class MultiLayerPerceptronClassifier:
 
         return (1 / m) * (alpha / 2) * penalty
 
-    def full_forward_propagation(self, y):
-        self.forward_propagation(inputs=self.inputs)
+    def full_forward_propagation(self, x, y):
+        self.forward_propagation(x)
         self.compute_loss(y)
 
     def compute_dAL(self, y):
         al = self.layers[-1].A
         return (1 / y.shape[1]) * (al - y) / (al - al**2)
 
-    def backward_propagation(self, d_AL, m):
+    def backward_propagation(self, x, d_AL, m):
         da = d_AL
         for lay in reversed(range(self.L + 1)):
             if lay == 0:
-                prev = self.inputs
+                prev = x
             else:
                 prev = self.layers[lay - 1].A
 
             da = self.layers[lay].backward_propagate(da, prev, m, self.alpha)
 
-    def full_backward_propagation(self, y):
+    def full_backward_propagation(self, x, y):
         m = y.shape[0]
         da = self.compute_dAL(y)
 
-        self.backward_propagation(da, m)
+        self.backward_propagation(x, da, m)
 
     def predict(self, inputs):
         return self.forward_propagation(inputs)

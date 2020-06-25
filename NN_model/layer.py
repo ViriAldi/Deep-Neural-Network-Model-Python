@@ -8,14 +8,21 @@ class Layer:
         self.derivative = derivative
         self.size = n
         self.prev = n_prev
+
         self.W = np.zeros((n, n_prev))
         self.B = np.zeros((n, 1))
         self.dW = np.zeros((n, n_prev))
         self.dB = np.zeros((n, 1))
+
         self.A = None
         self.Z = None
         self.dA = None
         self.dZ = None
+
+        self.Vel_W = None
+        self.Sqr_W = None
+        self.Vel_b = None
+        self.Sqr_b = None
 
     def forward_propagate(self, A_prev):
         self.Z = self.W @ A_prev + self.B

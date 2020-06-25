@@ -32,7 +32,7 @@ def load_data():
 
 
 def train_model(X_train, y_train):
-    model = MultiLayerPerceptronClassifier([10, 5], [tanh, tanh, tanh, tanh], num_iter=500, learning_rate=0.1, alpha=0.)
+    model = MultiLayerPerceptronClassifier([15, 8, 4], [tanh, tanh, tanh, tanh], num_epochs=50, learning_rate=0.0001, alpha=0.25, batch_size=64, optimizer="adam")
     model.fit(X_train, y_train)
 
     return model
